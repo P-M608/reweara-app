@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F0E8">
+<title>Reweara — ตู้เสื้อผ้าอัจฉริยะ</title>
+
+<!-- ฟอนต์: IBM Plex Sans Thai (เนื้อหา) + Cormorant Garamond (หัวข้อภาษาอังกฤษ) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS: ชุดคำสั่งแต่งหน้าเว็บสำเร็จรูป -->
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          cream:  '#F5F0E8', // พื้นหลังหลัก (เบจอ่อน)
+          sand:   '#E8DFD2', // เบจ
+          linen:  '#FBF8F3', // การ์ด
+          olive:  { DEFAULT: '#7A8B6F', dark: '#5E6E55', soft: '#DDE3D5' }, // เขียวตุ่น
+          clay:   '#B08968', // น้ำตาลอุ่น
+          ink:    '#3E3730', // ตัวอักษร
+          muted:  '#8A8178', // ตัวอักษรรอง
+          alert:  '#C26A4A'  // สีเตือน
+        },
+        fontFamily: {
+          sans: ['"IBM Plex Sans Thai"', 'system-ui', 'sans-serif'],
+          display: ['"Cormorant Garamond"', 'serif']
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  html, body { background: #F5F0E8; color: #3E3730; -webkit-tap-highlight-color: transparent; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+  .chip { display:inline-flex; align-items:center; gap:.35rem; white-space:nowrap; padding:.45rem .9rem; border-radius:999px;
+          border:1px solid #E8DFD2; background:#FBF8F3; font-size:.85rem; color:#3E3730; transition:all .15s; }
+  .chip:active { transform: scale(.96); }
+  .chip.on { background:#7A8B6F; border-color:#7A8B6F; color:#fff; }
+  .swatch { width:2.25rem; height:2.25rem; border-radius:999px; border:1px solid rgba(0,0,0,.12); position:relative; transition: transform .15s; }
+  .swatch.on { outline: 2.5px solid #5E6E55; outline-offset: 2.5px; }
+  .swatch.on::after { content:'✓'; position:absolute; inset:0; display:grid; place-items:center; font-size:.9rem; font-weight:600;
+                      color: var(--tick, #fff); text-shadow: 0 0 2px rgba(0,0,0,.35); }
+  .safe-bottom { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+  .fade-in { animation: fade .2s ease-out; }
+  .sheet-in { animation: sheet .25s cubic-bezier(.2,.8,.2,1); }
+  @keyframes fade { from { opacity:0 } to { opacity:1 } }
+  @keyframes sheet { from { transform: translateY(40px); opacity:0 } to { transform:none; opacity:1 } }
+  .btn-primary { background:#7A8B6F; color:#fff; border-radius:999px; padding:.8rem 1.4rem; font-weight:500; transition: background .15s; }
+  .btn-primary:hover { background:#5E6E55; }
+  .btn-primary:disabled { background:#C9CFC2; cursor:not-allowed; }
+  .btn-ghost { border:1px solid #E8DFD2; background:#FBF8F3; border-radius:999px; padding:.75rem 1.2rem; font-weight:500; }
+  input[type=text], input[type=search] { background:#FBF8F3; border:1px solid #E8DFD2; border-radius:.9rem; padding:.7rem .95rem; width:100%; outline:none; }
+  input[type=text]:focus, input[type=search]:focus { border-color:#7A8B6F; box-shadow: 0 0 0 3px #DDE3D5; }
+  .soon { font-size:.68rem; padding:.1rem .5rem; border-radius:999px; background:#E8DFD2; color:#8A8178; white-space:nowrap; }
+</style>
+</head>
+
+<body class="font-sans antialiased min-h-screen">
+
+<!-- ===================== เนื้อหาหลัก (4 หน้า) ===================== -->
+<main class="mx-auto max-w-5xl px-4 pt-5 pb-32">
+
+  <!-- ---------- หน้า 1: HOME ---------- -->
+  <section id="page-home" data-page="home" class="hidden"></section>
+
+  <!-- ---------- หน้า 2: MY WARDROBE ---------- -->
+  <section id="page-wardrobe" data-page="wardrobe" class="hidden"></section>
+
+  <!-- ---------- หน้า 3: SHOP ---------- -->
+  <section id="page-shop" data-page="shop" class="hidden"></section>
+
+  <!-- ---------- หน้า 4: PROFILE ---------- -->
+  <section id="page-profile" data-page="profile" class="hidden"></section>
+</main>
+
+<!-- ===================== แถบเมนูล่าง ===================== -->
+<nav class="fixed bottom-0 inset-x-0 z-30 safe-bottom pointer-events-none">
+  <div class="pointer-events-auto mx-auto max-w-lg px-3">
+    <div class="relative grid grid-cols-5 items-end rounded-[1.75rem] bg-linen/95 backdrop-blur border border-sand shadow-[0_8px_30px_rgba(62,55,48,.10)] px-2 pt-2 pb-2">
+      <button data-action="nav" data-to="home" class="nav-btn flex flex-col items-center gap-0.5 py-1 text-muted">
+        <span data-icon="home"></span><span class="text-[11px]">Home</span>
+      </button>
+      <button data-action="nav" data-to="wardrobe" class="nav-btn flex flex-col items-center gap-0.5 py-1 text-muted">
+        <span data-icon="hanger"></span><span class="text-[11px]">Wardrobe</span>
+      </button>
+      <div class="flex justify-center">
+        <button data-action="openPlus" aria-label="ถ่ายรูปหรือเพิ่มเสื้อผ้า"
+          class="-mt-9 w-16 h-16 rounded-full bg-olive hover:bg-olive-dark text-white grid place-items-center shadow-lg shadow-olive/40 ring-4 ring-cream transition active:scale-95">
+          <span data-icon="camera" data-size="28"></span>
+        </button>
+      </div>
+      <button data-action="nav" data-to="shop" class="nav-btn flex flex-col items-center gap-0.5 py-1 text-muted">
+        <span data-icon="bag"></span><span class="text-[11px]">Shop</span>
+      </button>
+      <button data-action="nav" data-to="profile" class="nav-btn flex flex-col items-center gap-0.5 py-1 text-muted">
+        <span data-icon="user"></span><span class="text-[11px]">Profile</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ช่องเลือกไฟล์ที่ซ่อนไว้ (ใช้เปิดกล้องบนมือถือ / เลือกรูปจากเครื่อง) -->
+<input id="file-camera" type="file" accept="image/*" capture="environment" class="hidden">
+<input id="file-gallery" type="file" accept="image/*" class="hidden">
+
+<!-- หน้าต่างลอย (Modal) และข้อความแจ้งเตือนสั้น (Toast) -->
+<div id="modal-root"></div>
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] hidden"></div>
+
+<script>
+/* =====================================================================
+   Reweara — ขั้นที่ 1: โครงหน้าตา + ตู้เสื้อผ้า (เก็บข้อมูลในเครื่อง)
+   ขั้นถัดไปจะย้ายข้อมูลขึ้น Firebase และเพิ่ม AI
+   ===================================================================== */
+
+/* ---------- ข้อมูลตั้งต้น ---------- */
+const CATEGORIES = [
+  { id: 'top',   th: 'เสื้อ',        en: 'Top' },
+  { id: 'outer', th: 'เสื้อคลุม',     en: 'Outerwear' },
+  { id: 'pants', th: 'กางเกง',       en: 'Pants' },
+  { id: 'skirt', th: 'กระโปรง',      en: 'Skirt' },
+  { id: 'dress', th: 'เดรส/จั๊มสูท',  en: 'Dress' },
+  { id: 'shoes', th: 'รองเท้า',       en: 'Shoes' },
+  { id: 'acc',   th: 'กระเป๋า/เครื่องประดับ', en: 'Accessories' }
+];
+
+const COLORS = [
+  { id: 'black',  th: 'ดำ',        hex: '#232323' },
+  { id: 'white',  th: 'ขาว',       hex: '#FFFFFF', dark: true },
+  { id: 'grey',   th: 'เทา',       hex: '#9E9E9E' },
+  { id: 'cream',  th: 'ครีม',      hex: '#F1E7D3', dark: true },
+  { id: 'beige',  th: 'เบจ',       hex: '#D8C3A5', dark: true },
+  { id: 'brown',  th: 'น้ำตาล',     hex: '#8B5E3C' },
+  { id: 'navy',   th: 'กรมท่า',    hex: '#1F2A44' },
+  { id: 'blue',   th: 'น้ำเงิน',     hex: '#2F5AA8' },
+  { id: 'sky',    th: 'ฟ้า',        hex: '#9CCBEA', dark: true },
+  { id: 'green',  th: 'เขียว',      hex: '#4F7942' },
+  { id: 'olive',  th: 'เขียวมะกอก', hex: '#7A7A45' },
+  { id: 'yellow', th: 'เหลือง',     hex: '#F2C94C', dark: true },
+  { id: 'orange', th: 'ส้ม',        hex: '#E8833A' },
+  { id: 'red',    th: 'แดง',        hex: '#C0392B' },
+  { id: 'pink',   th: 'ชมพู',       hex: '#F4A7B9', dark: true },
+  { id: 'purple', th: 'ม่วง',       hex: '#7D5BA6' },
+  { id: 'multi',  th: 'ลาย/หลายสี', hex: 'conic-gradient(#C0392B,#F2C94C,#4F7942,#2F5AA8,#7D5BA6,#C0392B)' }
+];
+
+const STYLES = [
+  { id: 'casual',   en: 'Casual',          th: 'ลำลอง' },
+  { id: 'minimal',  en: 'Minimal',         th: 'มินิมอล' },
+  { id: 'vintage',  en: 'Vintage',         th: 'วินเทจ' },
+  { id: 'boho',     en: 'Bohemian',        th: 'โบฮีเมียน' },
+  { id: 'street',   en: 'Street',          th: 'สตรีท' },
+  { id: 'sweet',    en: 'Sweet/Feminine',  th: 'หวาน/น่ารัก' },
+  { id: 'formal',   en: 'Formal/Working',  th: 'ทางการ/ทำงาน' },
+  { id: 'sporty',   en: 'Sporty',          th: 'สปอร์ต' }
+];
+
+const byId = (list, id) => list.find(x => x.id === id);
+
+/* ---------- ไอคอน (SVG วาดเอง ไม่ต้องโหลดไลบรารี) ---------- */
+const ICONS = {
+  home:   '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  hanger: '<path d="M9.5 6.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7"/><path d="M12 11 3.6 16.8A1.3 1.3 0 0 0 4.3 19h15.4a1.3 1.3 0 0 0 .7-2.2z"/>',
+  bag:    '<path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  user:   '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  image:  '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  plus:   '<path d="M12 5v14M5 12h14"/>',
+  heart:  '<path d="M12 20s-7-4.4-9-9a4.8 4.8 0 0 1 9-3 4.8 4.8 0 0 1 9 3c-2 4.6-9 9-9 9z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  x:      '<path d="M6 6l12 12M18 6 6 18"/>',
+  trash:  '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  edit:   '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  sun:    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  sparkle:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  flip:   '<path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/>',
+  check:  '<path d="m5 12 5 5 9-10"/>',
+  download:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  shield: '<path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  bulb:   '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  alert:  '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'
+};
+function icon(name, size = 22, extra = '') {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ${extra}>${ICONS[name] || ''}</svg>`;
+}
+function hydrateIcons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(el => {
+    el.innerHTML = icon(el.dataset.icon, Number(el.dataset.size) || 22);
+  });
+}
+
+/* ---------- กันโค้ดแปลกปลอมจากข้อความที่ผู้ใช้พิมพ์ ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* =====================================================================
+   ที่เก็บข้อมูลในเครื่อง (IndexedDB = ฐานข้อมูลเล็ก ๆ ในเบราว์เซอร์)
+   ขั้นที่ 2 จะเปลี่ยนไปเก็บบน Firebase แทน
+   ===================================================================== */
+const Store = {
+  db: null,
+  memory: new Map(), // สำรองกรณีเบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล (เช่น โหมดไม่ระบุตัวตนบางแบบ)
+  async open() {
+    try {
+      this.db = await new Promise((res, rej) => {
+        const r = indexedDB.open('reweara', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('items', { keyPath: 'id' });
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+    } catch (e) {
+      this.db = null;
+      toast('เบราว์เซอร์นี้ไม่ให้เก็บข้อมูล — ข้อมูลจะหายเมื่อปิดหน้า', 'warn');
+    }
+  },
+  _req(mode, fn) {
+    return new Promise((res, rej) => {
+      const store = this.db.transaction('items', mode).objectStore('items');
+      const r = fn(store);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async all()      { return this.db ? this._req('readonly', s => s.getAll()) : [...this.memory.values()]; },
+  async put(item)  { return this.db ? this._req('readwrite', s => s.put(item)) : this.memory.set(item.id, item); },
+  async remove(id) { return this.db ? this._req('readwrite', s => s.delete(id)) : this.memory.delete(id); },
+  async clear()    { return this.db ? this._req('readwrite', s => s.clear()) : this.memory.clear(); }
+};
+
+/* ---------- สถานะของแอป ---------- */
+const state = {
+  items: [],
+  filters: { cat: 'all', colors: new Set(), styles: new Set(), fav: false, q: '', more: false },
+  draft: null   // เสื้อผ้าที่กำลังเพิ่ม/แก้ไข
+};
+
+/* =====================================================================
+   การสลับหน้า (ใช้ # ท้ายลิงก์ เช่น #wardrobe เพื่อให้ปุ่มย้อนกลับใช้ได้)
+   ===================================================================== */
+const PAGES = ['home', 'wardrobe', 'shop', 'profile'];
+const currentPage = () => { const h = location.hash.slice(1); return PAGES.includes(h) ? h : 'home'; };
+function go(page) { if (location.hash.slice(1) === page) render(); else location.hash = page; }
+window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+
+function render() {
+  const page = currentPage();
+  document.querySelectorAll('[data-page]').forEach(s => s.classList.toggle('hidden', s.dataset.page !== page));
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    const on = b.dataset.to === page;
+    b.classList.toggle('text-olive-dark', on);
+    b.classList.toggle('text-muted', !on);
+    b.classList.toggle('font-semibold', on);
+  });
+  ({ home: renderHome, wardrobe: renderWardrobe, shop: renderShop, profile: renderProfile })[page]();
+  hydrateIcons();
+}
+
+/* =====================================================================
+   หน้า 1: HOME
+   ===================================================================== */
+function greeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'อรุณสวัสดิ์';
+  if (h >= 12 && h < 17) return 'สวัสดีตอนบ่าย';
+  if (h >= 17 && h < 22) return 'สวัสดีตอนเย็น';
+  return 'ราตรีสวัสดิ์';
+}
+
+function renderHome() {
+  const n = state.items.length;
+  const steps = [
+    { done: n > 0, title: 'เพิ่มเสื้อผ้าเข้าตู้', desc: 'ถ่ายรูปหรืออัปโหลดเสื้อผ้าชิ้นแรก', action: 'addToCloset', ready: true },
+    { done: false, title: 'ตั้งค่าโปรไฟล์', desc: 'Personal Color และรูปร่าง', ready: false, soon: 'ขั้นที่ 4' },
+    { done: false, title: 'ลองให้ AI จัดชุด', desc: 'ได้ 3 ลุคจากตู้ของคุณ', ready: false, soon: 'ขั้นที่ 4' }
+  ];
+  const doneCount = steps.filter(s => s.done).length;
+
+  document.getElementById('page-home').innerHTML = `
+    <header class="flex items-start justify-between gap-3 fade-in">
+      <div>
+        <p class="text-sm text-muted">${greeting()} 👋</p>
+        <h1 class="text-2xl font-semibold leading-tight mt-0.5">วันนี้ใส่อะไรดี?</h1>
+      </div>
+      <div class="flex items-center gap-2 rounded-full bg-linen border border-sand px-3 py-1.5 text-sm text-muted" title="สภาพอากาศจะเปิดใช้ในขั้นที่ 5">
+        <span class="text-clay">${icon('sun', 18)}</span><span>-- °C</span>
+      </div>
+    </header>
+
+    <form data-submit="homeSearch" class="mt-4 relative">
+      <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">${icon('search', 18)}</span>
+      <input id="home-search" type="search" placeholder="ค้นหาเสื้อผ้า ลุค หรือแบรนด์" style="padding-left:2.6rem" enterkeyhint="search">
+    </form>
+
+    ${doneCount < steps.length ? `
+    <div class="mt-5 rounded-3xl bg-olive-soft/60 border border-olive-soft p-4 sm:p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold">เริ่มต้นใช้งาน 3 ขั้นตอน</h2>
+        <span class="text-xs text-olive-dark">${doneCount}/3 เสร็จแล้ว</span>
+      </div>
+      <ol class="mt-3 grid gap-2 sm:grid-cols-3">
+        ${steps.map((s, i) => `
+          <li>
+            <button ${s.ready && !s.done ? `data-action="${s.action}"` : 'disabled'}
+              class="w-full text-left flex items-center gap-3 rounded-2xl bg-linen px-3.5 py-3 border ${s.ready && !s.done ? 'border-olive shadow-sm' : 'border-transparent'} ${!s.ready ? 'opacity-60' : ''}">
+              <span class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-sm font-semibold ${s.done ? 'bg-olive text-white' : 'bg-sand text-ink'}">
+                ${s.done ? icon('check', 16) : i + 1}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-sm font-medium ${s.done ? 'line-through text-muted' : ''}">${s.title}</span>
+                <span class="block text-xs text-muted">${s.desc} ${s.soon ? `<span class="soon ml-1">${s.soon}</span>` : ''}</span>
+              </span>
+            </button>
+          </li>`).join('')}
+      </ol>
+    </div>` : ''}
+
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <button data-action="nav" data-to="wardrobe" class="text-left rounded-3xl bg-linen border border-sand p-4 hover:border-clay transition">
+        <span class="w-10 h-10 rounded-2xl bg-sand grid place-items-center text-ink">${icon('hanger')}</span>
+        <span class="block mt-3 font-semibold">ตู้เสื้อผ้า</span>
+        <span class="block text-xs text-muted">${n} ชิ้นในตู้</span>
+      </button>
+      <button data-action="soon" data-msg="AI จัดชุดจะเปิดใช้ในขั้นที่ 4" class="text-left rounded-3xl bg-olive text-white p-4 hover:bg-olive-dark transition">
+        <span class="w-10 h-10 rounded-2xl bg-white/20 grid place-items-center">${icon('sparkle')}</span>
+        <span class="block mt-3 font-semibold">ให้ AI จัดชุดวันนี้</span>
+        <span class="block text-xs text-white/80">Mix &amp; Match · เร็ว ๆ นี้</span>
+      </button>
+    </div>
+
+    <section class="mt-7">
+      <div class="flex items-baseline justify-between">
+        <h2 class="font-display text-2xl">Looks for you</h2>
+        <span class="soon">ขั้นที่ 4</span>
+      </div>
+      <p class="text-sm text-muted">ลุคแนะนำ 3 ลุคจากเสื้อผ้าในตู้ของคุณ</p>
+      <div class="mt-3 flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+        ${[1, 2, 3].map(i => `
+          <div class="shrink-0 w-40 sm:w-48 aspect-[3/4] rounded-3xl border-2 border-dashed border-sand bg-linen/60 grid place-items-center text-center p-4">
+            <div class="text-muted">
+              <span class="inline-block opacity-60">${icon('sparkle', 28)}</span>
+              <p class="text-xs mt-2">ลุคที่ ${i}</p>
+            </div>
+          </div>`).join('')}
+      </div>
+    </section>
+
+    <section class="mt-6 grid gap-3 sm:grid-cols-2">
+      <div class="rounded-3xl p-5 bg-gradient-to-br from-clay to-[#8E6A4E] text-white relative overflow-hidden">
+        <span class="absolute -right-4 -bottom-6 opacity-20">${icon('calendar', 110)}</span>
+        <span class="soon !bg-white/20 !text-white">ขั้นที่ 5</span>
+        <h3 class="mt-2 text-lg font-semibold">ชาเลนจ์ 7 วัน 7 ลุค</h3>
+        <p class="text-sm text-white/85">ใส่ลุคไม่ซ้ำ 7 วัน จากเสื้อผ้าที่มีอยู่แล้ว</p>
+      </div>
+      <div class="rounded-3xl p-5 bg-linen border border-sand">
+        <div class="flex items-center justify-between">
+          <span class="text-clay">${icon('bulb')}</span><span class="soon">ขั้นที่ 5</span>
+        </div>
+        <h3 class="mt-2 font-semibold">ไอเดียแต่งตัวประจำวัน</h3>
+        <p class="text-sm text-muted">เคล็ดลับตาม Personal Color รูปร่าง และอากาศวันนี้</p>
+      </div>
+    </section>
+  `;
+}
+
+/* =====================================================================
+   หน้า 2: MY WARDROBE
+   ===================================================================== */
+function itemMatches(it, f) {
+  if (f.cat !== 'all' && it.category !== f.cat) return false;
+  if (f.fav && !it.favorite) return false;
+  if (f.colors.size && !it.colors.some(c => f.colors.has(c))) return false;
+  if (f.styles.size && !it.styles.some(s => f.styles.has(s))) return false;
+  if (f.q) {
+    const cat = byId(CATEGORIES, it.category);
+    const hay = [
+      it.name, it.brand, it.size, cat?.th, cat?.en,
+      ...it.colors.map(c => byId(COLORS, c)?.th),
+      ...it.styles.flatMap(s => { const st = byId(STYLES, s); return [st?.en, st?.th]; })
+    ].join(' ').toLowerCase();
+    if (!f.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))) return false;
+  }
+  return true;
+}
+
+function renderWardrobe() {
+  const f = state.filters;
+  const list = state.items.filter(it => itemMatches(it, f)).sort((a, b) => b.createdAt - a.createdAt);
+  const countBy = id => state.items.filter(it => it.category === id).length;
+  const activeExtra = f.colors.size + f.styles.size + (f.fav ? 1 : 0);
+  const anyFilter = f.cat !== 'all' || activeExtra || f.q;
+
+  document.getElementById('page-wardrobe').innerHTML = `
+    <header class="flex items-end justify-between fade-in">
+      <div>
+        <h1 class="font-display text-3xl leading-none">My Wardrobe</h1>
+        <p class="text-sm text-muted mt-1">ตู้เสื้อผ้าของฉัน · ${state.items.length} ชิ้น</p>
+      </div>
+      <button data-action="addToCloset" class="btn-primary !py-2.5 !px-4 text-sm flex items-center gap-1.5">${icon('plus', 18)} เพิ่ม</button>
+    </header>
+
+    <div class="mt-4 flex gap-2">
+      <form data-submit="wardrobeSearch" class="relative flex-1">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">${icon('search', 18)}</span>
+        <input id="wardrobe-search" type="search" value="${esc(f.q)}" placeholder="ค้นหา เช่น เชิ้ต เบจ, Uniqlo" style="padding-left:2.6rem" enterkeyhint="search">
+      </form>
+      <button data-action="toggleMore" aria-label="ตัวกรองเพิ่มเติม"
+        class="relative shrink-0 w-12 rounded-2xl border ${f.more || activeExtra ? 'bg-olive text-white border-olive' : 'bg-linen border-sand'} grid place-items-center">
+        ${icon('filter')}
+        ${activeExtra ? `<span class="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-clay text-white text-[11px] grid place-items-center">${activeExtra}</span>` : ''}
+      </button>
+    </div>
+
+    <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+      <button data-action="filterCat" data-id="all" class="chip ${f.cat === 'all' ? 'on' : ''}">ทั้งหมด <span class="opacity-70">${state.items.length}</span></button>
+      ${CATEGORIES.map(c => `<button data-action="filterCat" data-id="${c.id}" class="chip ${f.cat === c.id ? 'on' : ''}">${c.th} <span class="opacity-70">${countBy(c.id)}</span></button>`).join('')}
+    </div>
+
+    ${f.more ? `
+    <div class="mt-3 rounded-3xl bg-linen border border-sand p-4 fade-in">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium">สี</p>
+        ${anyFilter ? `<button data-action="clearFilters" class="text-xs text-olive-dark underline">ล้างตัวกรองทั้งหมด</button>` : ''}
+      </div>
+      <div class="mt-2 flex flex-wrap gap-2.5">
+        ${COLORS.map(c => `<button data-action="filterColor" data-id="${c.id}" title="${c.th}" aria-label="${c.th}" class="swatch ${f.colors.has(c.id) ? 'on' : ''}" style="background:${c.hex};${c.dark ? '--tick:#3E3730' : ''}"></button>`).join('')}
+      </div>
+      <p class="text-sm font-medium mt-4">สไตล์</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        ${STYLES.map(s => `<button data-action="filterStyle" data-id="${s.id}" class="chip ${f.styles.has(s.id) ? 'on' : ''}">${s.en}</button>`).join('')}
+      </div>
+      <label class="mt-4 flex items-center gap-2 text-sm cursor-pointer select-none">
+        <input type="checkbox" data-change="filterFav" ${f.fav ? 'checked' : ''} class="w-4 h-4 accent-[#7A8B6F]"> แสดงเฉพาะชิ้นที่ชอบ ♥
+      </label>
+    </div>` : ''}
+
+    ${state.items.length === 0 ? `
+      <div class="mt-10 text-center px-6 fade-in">
+        <div class="mx-auto w-20 h-20 rounded-full bg-sand grid place-items-center text-clay">${icon('hanger', 36)}</div>
+        <h2 class="mt-4 font-semibold text-lg">ตู้ยังว่างอยู่</h2>
+        <p class="text-sm text-muted mt-1">ถ่ายรูปเสื้อผ้าชิ้นแรกเพื่อเริ่มสร้างตู้ดิจิทัลของคุณ</p>
+        <button data-action="addToCloset" class="btn-primary mt-5 inline-flex items-center gap-2">${icon('camera', 20)} เพิ่มเสื้อผ้าชิ้นแรก</button>
+      </div>
+    ` : list.length === 0 ? `
+      <div class="mt-10 text-center text-muted">
+        <p>ไม่พบเสื้อผ้าที่ตรงกับตัวกรอง</p>
+        <button data-action="clearFilters" class="btn-ghost mt-4 text-sm">ล้างตัวกรอง</button>
+      </div>
+    ` : `
+      <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        ${list.map(itemCard).join('')}
+      </div>
+    `}
+  `;
+}
+
+function itemCard(it) {
+  const cat = byId(CATEGORIES, it.category);
+  return `
+    <article class="group fade-in">
+      <div class="relative rounded-3xl overflow-hidden bg-sand aspect-[3/4]">
+        <button data-action="openItem" data-id="${it.id}" class="absolute inset-0 w-full h-full" aria-label="ดูรายละเอียด ${esc(it.name || cat?.th)}">
+          <img src="${it.image}" alt="" loading="lazy" class="w-full h-full object-cover transition duration-300 group-hover:scale-[1.03]">
+        </button>
+        <button data-action="toggleFav" data-id="${it.id}" aria-label="ชอบ"
+          class="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-white/85 backdrop-blur grid place-items-center ${it.favorite ? 'text-alert' : 'text-ink/70'}">
+          ${icon('heart', 18, it.favorite ? 'fill="currentColor"' : '')}
+        </button>
+      </div>
+      <div class="mt-2 px-1 flex items-center gap-2">
+        <div class="flex -space-x-1">
+          ${it.colors.slice(0, 3).map(c => `<span class="w-3.5 h-3.5 rounded-full border border-white" style="background:${byId(COLORS, c)?.hex}"></span>`).join('')}
+        </div>
+        <p class="text-sm truncate">${esc(it.name || cat?.th || '')}</p>
+      </div>
+      ${it.brand ? `<p class="px-1 text-xs text-muted truncate">${esc(it.brand)}</p>` : ''}
+    </article>`;
+}
+
+/* =====================================================================
+   หน้า 3: SHOP (ระบบเตือนก่อนซื้อ — เปิดใช้ในขั้นที่ 3)
+   ===================================================================== */
+function renderShop() {
+  document.getElementById('page-shop').innerHTML = `
+    <header class="fade-in">
+      <h1 class="font-display text-3xl leading-none">Smart Buy or Not</h1>
+      <p class="text-sm text-muted mt-1">เช็กก่อนซื้อ ว่ามีของคล้ายกันในตู้แล้วหรือยัง</p>
+    </header>
+
+    <div class="mt-5 rounded-3xl border-2 border-dashed border-sand bg-linen/70 p-6 text-center">
+      <div class="mx-auto w-16 h-16 rounded-full bg-sand grid place-items-center text-clay">${icon('bag', 30)}</div>
+      <h2 class="mt-3 font-semibold">อัปโหลดภาพแคปหน้าจอ หรือถ่ายรูปเสื้อในร้าน</h2>
+      <p class="text-sm text-muted mt-1">จาก IG, Shopee, TikTok หรือประกาศขายมือสอง</p>
+      <div class="mt-4 flex flex-wrap justify-center gap-2 opacity-60">
+        <button disabled class="btn-ghost text-sm inline-flex items-center gap-1.5">${icon('image', 18)} อัปโหลดรูป</button>
+        <button disabled class="btn-ghost text-sm inline-flex items-center gap-1.5">${icon('camera', 18)} ถ่ายรูป</button>
+      </div>
+      <p class="mt-4"><span class="soon">เปิดใช้ในขั้นที่ 3</span></p>
+    </div>
+
+    <div class="mt-5 rounded-3xl bg-linen border border-sand p-5">
+      <h3 class="font-semibold">ระบบจะเตือนอย่างไร?</h3>
+      <div class="mt-3 grid grid-cols-2 gap-3 max-w-sm">
+        <div class="relative rounded-2xl overflow-hidden aspect-square bg-sand">
+          <span class="absolute top-2 right-2 w-8 h-8 rounded-full bg-alert text-white grid place-items-center text-lg font-bold shadow">!</span>
+          <span class="absolute bottom-0 inset-x-0 bg-white/85 text-[11px] p-1.5">มีของคล้ายกันแล้ว</span>
+        </div>
+        <div class="relative rounded-2xl overflow-hidden aspect-square bg-olive-soft">
+          <span class="absolute top-2 right-2 w-8 h-8 rounded-full bg-olive text-white grid place-items-center shadow">${icon('check', 18)}</span>
+          <span class="absolute bottom-0 inset-x-0 bg-white/85 text-[11px] p-1.5">ยังไม่มีในตู้</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* =====================================================================
+   หน้า 4: PROFILE
+   ===================================================================== */
+function renderProfile() {
+  const n = state.items.length;
+  const fav = state.items.filter(i => i.favorite).length;
+  document.getElementById('page-profile').innerHTML = `
+    <header class="flex items-center gap-4 fade-in">
+      <div class="w-16 h-16 rounded-full bg-sand grid place-items-center text-clay">${icon('user', 30)}</div>
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold">ผู้ใช้ทดลอง (Guest)</h1>
+        <p class="text-sm text-muted">ข้อมูลเก็บอยู่ในเบราว์เซอร์เครื่องนี้</p>
+      </div>
+    </header>
+
+    <div class="mt-4 rounded-2xl bg-linen border border-sand p-4 flex items-center justify-between gap-3">
+      <p class="text-sm">ล็อกอินด้วย Google / อีเมล และผูกบัญชีเพื่อไม่ให้ตู้หาย</p>
+      <span class="soon">ขั้นที่ 2</span>
+    </div>
+
+    <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+      <div class="rounded-2xl bg-linen border border-sand p-3"><p class="text-2xl font-semibold">${n}</p><p class="text-xs text-muted">ชิ้นในตู้</p></div>
+      <div class="rounded-2xl bg-linen border border-sand p-3"><p class="text-2xl font-semibold">${fav}</p><p class="text-xs text-muted">ชิ้นที่ชอบ</p></div>
+      <div class="rounded-2xl bg-linen border border-sand p-3"><p class="text-2xl font-semibold">0</p><p class="text-xs text-muted">ลุคที่บันทึก</p></div>
+    </div>
+
+    <section class="mt-6">
+      <h2 class="font-semibold">ข้อมูลสไตล์ของฉัน</h2>
+      <div class="mt-2 divide-y divide-sand rounded-3xl bg-linen border border-sand overflow-hidden">
+        ${[
+          ['Personal Color', 'เลือกเอง / แบบทดสอบ / AI วิเคราะห์จากรูป'],
+          ['รูปร่างและสัดส่วน', 'ทรงรูปร่าง ส่วนสูง น้ำหนัก ไซซ์ อก เอว สะโพก'],
+          ['สไตล์ที่ชอบ', STYLES.map(s => s.en).join(' · ')]
+        ].map(([t, d]) => `
+          <div class="flex items-center justify-between gap-3 p-4 opacity-70">
+            <div class="min-w-0"><p class="font-medium text-sm">${t}</p><p class="text-xs text-muted truncate">${d}</p></div>
+            <span class="soon">ขั้นที่ 4</span>
+          </div>`).join('')}
+      </div>
+    </section>
+
+    <section class="mt-6">
+      <h2 class="font-semibold flex items-center gap-2"><span class="text-olive">${icon('shield', 20)}</span> ข้อมูลและความเป็นส่วนตัว</h2>
+      <div class="mt-2 divide-y divide-sand rounded-3xl bg-linen border border-sand overflow-hidden">
+        <button data-action="exportData" class="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-cream">
+          <div><p class="font-medium text-sm">ดาวน์โหลดข้อมูลของฉัน</p><p class="text-xs text-muted">ไฟล์ .json รวมรูปและข้อมูลเสื้อผ้าทั้งหมด</p></div>
+          <span class="text-muted">${icon('download', 20)}</span>
+        </button>
+        <button data-action="deleteAll" class="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-cream">
+          <div><p class="font-medium text-sm text-alert">ลบข้อมูลทั้งหมด</p><p class="text-xs text-muted">ลบเสื้อผ้าทุกชิ้นออกจากเครื่องนี้ กู้คืนไม่ได้</p></div>
+          <span class="text-alert">${icon('trash', 20)}</span>
+        </button>
+      </div>
+    </section>
+
+    <p class="mt-8 text-center text-xs text-muted">Reweara · เวอร์ชันทดลอง ขั้นที่ 1</p>
+  `;
+}
+
+/* =====================================================================
+   หน้าต่างลอย (Modal / Bottom sheet)
+   ===================================================================== */
+let cameraStream = null;
+let cameraFacing = 'environment';
+
+function openModal(html, { full = false } = {}) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center fade-in">
+      <div data-action="closeModal" class="absolute inset-0 bg-ink/40 backdrop-blur-[2px]"></div>
+      <div role="dialog" aria-modal="true"
+        class="relative w-full ${full ? 'sm:max-w-lg h-[100dvh] sm:h-auto sm:max-h-[92vh]' : 'sm:max-w-md max-h-[92vh]'} bg-cream ${full ? 'sm:rounded-3xl' : 'rounded-t-[2rem] sm:rounded-3xl'} shadow-2xl overflow-y-auto sheet-in">
+        ${html}
+      </div>
+    </div>`;
+  document.body.style.overflow = 'hidden';
+  hydrateIcons(root);
+}
+function closeModal() {
+  stopCamera();
+  document.getElementById('modal-root').innerHTML = '';
+  document.body.style.overflow = '';
+  state.draft = null;
+}
+const sheetHandle = `<div class="sm:hidden mx-auto mt-2.5 w-10 h-1.5 rounded-full bg-sand"></div>`;
+const closeBtn = `<button data-action="closeModal" aria-label="ปิด" class="w-10 h-10 rounded-full grid place-items-center hover:bg-sand">${icon('x')}</button>`;
+
+/* ---------- ปุ่ม (+) ตรงกลาง ---------- */
+function openPlus() {
+  openModal(`
+    ${sheetHandle}
+    <div class="p-5 pt-3">
+      <div class="flex items-center justify-between"><h2 class="font-semibold text-lg">อยากทำอะไร?</h2>${closeBtn}</div>
+      <div class="mt-3 grid gap-3">
+        <button data-action="addToCloset" class="flex items-center gap-4 rounded-3xl bg-olive text-white p-4 text-left">
+          <span class="w-12 h-12 rounded-2xl bg-white/20 grid place-items-center">${icon('hanger', 24)}</span>
+          <span><span class="block font-semibold">เพิ่มเข้าตู้</span><span class="block text-sm text-white/80">ถ่ายรูปเสื้อผ้าที่มีอยู่แล้ว</span></span>
+        </button>
+        <button data-action="goShop" class="flex items-center gap-4 rounded-3xl bg-linen border border-sand p-4 text-left">
+          <span class="w-12 h-12 rounded-2xl bg-sand grid place-items-center text-clay">${icon('bag', 24)}</span>
+          <span><span class="block font-semibold">เช็กก่อนซื้อ</span><span class="block text-sm text-muted">ดูว่ามีของคล้ายกันในตู้หรือยัง</span></span>
+        </button>
+      </div>
+    </div>`);
+}
+
+/* ---------- เลือกวิธีเพิ่มรูป ---------- */
+function openSourcePicker() {
+  openModal(`
+    ${sheetHandle}
+    <div class="p-5 pt-3">
+      <div class="flex items-center justify-between"><h2 class="font-semibold text-lg">เพิ่มเสื้อผ้าเข้าตู้</h2>${closeBtn}</div>
+      <p class="text-sm text-muted">💡 วางเสื้อผ้าบนพื้นเรียบสีอ่อน ถ่ายให้เห็นทั้งชิ้นในที่สว่าง</p>
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <button data-action="takePhoto" class="rounded-3xl bg-olive text-white p-5 flex flex-col items-center gap-2">
+          ${icon('camera', 32)}<span class="font-semibold">ถ่ายรูป</span>
+        </button>
+        <button data-action="pickFile" class="rounded-3xl bg-linen border border-sand p-5 flex flex-col items-center gap-2">
+          <span class="text-clay">${icon('image', 32)}</span><span class="font-semibold">เลือกจากเครื่อง</span>
+        </button>
+      </div>
+    </div>`);
+}
+
+/* ---------- กล้อง ----------
+   มือถือ/แท็บเล็ต: เปิดแอปกล้องของเครื่องโดยตรง (เร็วและเสถียรที่สุด)
+   คอมพิวเตอร์: เปิดกล้องเว็บแคมในหน้าเว็บ */
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+async function takePhoto() {
+  if (isTouchDevice() || !navigator.mediaDevices?.getUserMedia) {
+    document.getElementById('file-camera').click();
+    return;
+  }
+  openModal(`
+    <div class="p-4">
+      <div class="flex items-center justify-between"><h2 class="font-semibold">ถ่ายรูปเสื้อผ้า</h2>${closeBtn}</div>
+      <div class="mt-3 relative rounded-3xl overflow-hidden bg-ink aspect-[3/4] sm:aspect-[4/3]">
+        <video id="cam-video" playsinline muted autoplay class="w-full h-full object-cover"></video>
+        <div id="cam-msg" class="absolute inset-0 grid place-items-center text-white/80 text-sm p-6 text-center">กำลังเปิดกล้อง...</div>
+      </div>
+      <div class="mt-4 flex items-center justify-center gap-6">
+        <button data-action="pickFile" class="w-12 h-12 rounded-full bg-linen border border-sand grid place-items-center" aria-label="เลือกจากเครื่อง">${icon('image')}</button>
+        <button data-action="capture" id="cam-shoot" disabled class="w-[4.5rem] h-[4.5rem] rounded-full bg-olive ring-4 ring-olive-soft disabled:opacity-40" aria-label="ถ่าย"></button>
+        <button data-action="flipCamera" class="w-12 h-12 rounded-full bg-linen border border-sand grid place-items-center" aria-label="สลับกล้อง">${icon('flip')}</button>
+      </div>
+    </div>`, { full: true });
+  await startCamera();
+}
+
+async function startCamera() {
+  stopCamera();
+  const video = document.getElementById('cam-video');
+  const msg = document.getElementById('cam-msg');
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: cameraFacing }, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false
+    });
+    if (!video) return stopCamera(); // ผู้ใช้ปิดหน้าต่างไปก่อน
+    video.srcObject = cameraStream;
+    await video.play();
+    msg.classList.add('hidden');
+    document.getElementById('cam-shoot').disabled = false;
+  } catch (e) {
+    if (msg) msg.innerHTML = `เปิดกล้องไม่ได้ (อาจยังไม่ได้อนุญาตให้ใช้กล้อง)<br><button data-action="pickFile" class="mt-3 btn-ghost !text-ink text-sm">เลือกรูปจากเครื่องแทน</button>`;
+  }
+}
+function stopCamera() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+}
+function capture() {
+  const v = document.getElementById('cam-video');
+  if (!v || !v.videoWidth) return;
+  const dataUrl = drawScaled(v, v.videoWidth, v.videoHeight);
+  stopCamera();
+  openEditor({ image: dataUrl });
+}
+
+/* ---------- ย่อรูปให้เล็กลง (โหลดเร็ว + ประหยัดที่เก็บ) ---------- */
+function drawScaled(src, w, h, max = 900) {
+  const s = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * s); c.height = Math.round(h * s);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(src, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.82);
+}
+function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { try { res(drawScaled(img, img.naturalWidth, img.naturalHeight)); } finally { URL.revokeObjectURL(url); } };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('อ่านรูปไม่ได้')); };
+    img.src = url;
+  });
+}
+async function onFilePicked(e) {
+  const file = e.target.files?.[0];
+  e.target.value = ''; // ให้เลือกไฟล์เดิมซ้ำได้
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast('กรุณาเลือกไฟล์รูปภาพ', 'warn');
+  try {
+    const image = await fileToDataUrl(file);
+    if (state.draft && state.draft.replacing) { state.draft.image = image; state.draft.replacing = false; renderEditor(); }
+    else openEditor({ image });
+  } catch {
+    toast('อ่านรูปนี้ไม่ได้ ลองรูปอื่น (แนะนำ JPG หรือ PNG)', 'warn');
+  }
+}
+document.getElementById('file-camera').addEventListener('change', onFilePicked);
+document.getElementById('file-gallery').addEventListener('change', onFilePicked);
+
+/* =====================================================================
+   หน้าต่างเพิ่ม/แก้ไขเสื้อผ้า
+   (ขั้นที่ 3 AI จะเติมประเภท สี สไตล์ให้อัตโนมัติ — ตอนนี้ผู้ใช้เลือกเอง)
+   ===================================================================== */
+function openEditor(item) {
+  state.draft = {
+    id: item.id || null, image: item.image,
+    category: item.category || null, colors: [...(item.colors || [])], styles: [...(item.styles || [])],
+    name: item.name || '', brand: item.brand || '', size: item.size || '',
+    favorite: !!item.favorite, createdAt: item.createdAt || null
+  };
+  openModal('<div id="editor"></div>', { full: true });
+  renderEditor();
+}
+
+function renderEditor() {
+  const d = state.draft;
+  const el = document.getElementById('editor');
+  if (!d || !el) return;
+  const ready = d.category && d.colors.length;
+  el.innerHTML = `
+    <div class="sticky top-0 z-10 bg-cream/95 backdrop-blur flex items-center justify-between px-4 py-3 border-b border-sand">
+      ${closeBtn}
+      <h2 class="font-semibold">${d.id ? 'แก้ไขเสื้อผ้า' : 'เพิ่มเสื้อผ้าเข้าตู้'}</h2>
+      <span class="w-10"></span>
+    </div>
+
+    <div class="p-4 pb-28">
+      <div class="relative mx-auto w-44 sm:w-52 aspect-[3/4] rounded-3xl overflow-hidden bg-sand shadow-sm">
+        <img src="${d.image}" alt="รูปเสื้อผ้า" class="w-full h-full object-cover">
+        <button data-action="changePhoto" class="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs bg-white/90 rounded-full px-3 py-1.5 whitespace-nowrap">เปลี่ยนรูป</button>
+      </div>
+
+      <div class="mt-5">
+        <p class="text-sm font-medium">ประเภท <span class="text-alert">*</span></p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          ${CATEGORIES.map(c => `<button data-action="setCat" data-id="${c.id}" class="chip ${d.category === c.id ? 'on' : ''}">${c.th}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="mt-5">
+        <p class="text-sm font-medium">สี <span class="text-alert">*</span> <span class="text-xs text-muted font-normal">เลือกได้หลายสี${d.colors.length ? ' · ' + d.colors.map(c => byId(COLORS, c).th).join(', ') : ''}</span></p>
+        <div class="mt-2 flex flex-wrap gap-2.5">
+          ${COLORS.map(c => `<button data-action="toggleColor" data-id="${c.id}" title="${c.th}" aria-label="${c.th}" class="swatch ${d.colors.includes(c.id) ? 'on' : ''}" style="background:${c.hex};${c.dark ? '--tick:#3E3730' : ''}"></button>`).join('')}
+        </div>
+      </div>
+
+      <div class="mt-5">
+        <p class="text-sm font-medium">สไตล์ <span class="text-xs text-muted font-normal">ไม่บังคับ · เลือกได้หลายแบบ</span></p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          ${STYLES.map(s => `<button data-action="toggleStyle" data-id="${s.id}" class="chip ${d.styles.includes(s.id) ? 'on' : ''}">${s.en}</button>`).join('')}
+        </div>
+      </div>
+
+      <details class="mt-5 rounded-2xl bg-linen border border-sand" ${d.name || d.brand || d.size ? 'open' : ''}>
+        <summary class="cursor-pointer select-none p-4 text-sm font-medium">ข้อมูลเพิ่มเติม <span class="text-xs text-muted font-normal">(ไม่บังคับ)</span></summary>
+        <div class="px-4 pb-4 grid gap-3">
+          <label class="text-xs text-muted">ชื่อเรียก<input type="text" data-field="name" value="${esc(d.name)}" placeholder="เช่น เชิ้ตลินินตัวโปรด" maxlength="60" class="mt-1 text-sm text-ink"></label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs text-muted">แบรนด์<input type="text" data-field="brand" value="${esc(d.brand)}" placeholder="เช่น Uniqlo" maxlength="40" class="mt-1 text-sm text-ink"></label>
+            <label class="text-xs text-muted">ไซซ์<input type="text" data-field="size" value="${esc(d.size)}" placeholder="เช่น M, 28" maxlength="10" class="mt-1 text-sm text-ink"></label>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="fixed sm:sticky bottom-0 inset-x-0 bg-cream/95 backdrop-blur border-t border-sand p-4 safe-bottom">
+      <button data-action="saveItem" ${ready ? '' : 'disabled'} class="btn-primary w-full text-base">
+        ${ready ? (d.id ? 'บันทึกการแก้ไข' : 'บันทึกเข้าตู้') : 'เลือกประเภทและสีก่อนบันทึก'}
+      </button>
+    </div>`;
+}
+
+async function saveItem() {
+  const d = state.draft;
+  if (!d || !d.category || !d.colors.length) return;
+  const now = Date.now();
+  const item = {
+    id: d.id || (crypto.randomUUID ? crypto.randomUUID() : String(now) + Math.random().toString(16).slice(2)),
+    image: d.image, category: d.category, colors: d.colors, styles: d.styles,
+    name: d.name.trim(), brand: d.brand.trim(), size: d.size.trim(),
+    favorite: d.favorite, createdAt: d.createdAt || now, updatedAt: now
+  };
+  try {
+    await Store.put(item);
+  } catch (e) {
+    return toast('บันทึกไม่สำเร็จ — ที่เก็บข้อมูลในเครื่องอาจเต็ม', 'warn');
+  }
+  const i = state.items.findIndex(x => x.id === item.id);
+  if (i >= 0) state.items[i] = item; else state.items.push(item);
+  const isNew = !d.id;
+  closeModal();
+  toast(isNew ? 'เพิ่มเข้าตู้แล้ว ✓' : 'บันทึกการแก้ไขแล้ว ✓');
+  if (isNew && currentPage() !== 'wardrobe') go('wardrobe'); else render();
+}
+
+/* ---------- ดูรายละเอียดเสื้อผ้า ---------- */
+function openItem(id) {
+  const it = state.items.find(x => x.id === id);
+  if (!it) return;
+  const cat = byId(CATEGORIES, it.category);
+  openModal(`
+    <div class="relative">
+      <img src="${it.image}" alt="" class="w-full max-h-[60vh] object-cover bg-sand">
+      <button data-action="closeModal" aria-label="ปิด" class="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/90 grid place-items-center">${icon('x')}</button>
+      <button data-action="toggleFav" data-id="${it.id}" data-in-modal="1" aria-label="ชอบ" class="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/90 grid place-items-center ${it.favorite ? 'text-alert' : ''}">
+        ${icon('heart', 20, it.favorite ? 'fill="currentColor"' : '')}
+      </button>
+    </div>
+    <div class="p-5">
+      <p class="text-xs text-muted">${cat?.th} · ${cat?.en}</p>
+      <h2 class="text-xl font-semibold mt-0.5">${esc(it.name || cat?.th)}</h2>
+      ${it.brand || it.size ? `<p class="text-sm text-muted mt-0.5">${[it.brand && esc(it.brand), it.size && 'ไซซ์ ' + esc(it.size)].filter(Boolean).join(' · ')}</p>` : ''}
+      <div class="mt-4 flex flex-wrap gap-2">
+        ${it.colors.map(c => { const col = byId(COLORS, c); return `<span class="chip !py-1"><span class="w-3.5 h-3.5 rounded-full border border-black/10" style="background:${col.hex}"></span>${col.th}</span>`; }).join('')}
+        ${it.styles.map(s => `<span class="chip !py-1 !bg-olive-soft !border-olive-soft">${byId(STYLES, s).en}</span>`).join('')}
+      </div>
+      <p class="text-xs text-muted mt-4">เพิ่มเมื่อ ${new Date(it.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button data-action="editItem" data-id="${it.id}" class="btn-ghost inline-flex items-center justify-center gap-2">${icon('edit', 18)} แก้ไข</button>
+        <button data-action="deleteItem" data-id="${it.id}" class="btn-ghost !text-alert inline-flex items-center justify-center gap-2">${icon('trash', 18)} ลบ</button>
+      </div>
+    </div>`);
+}
+
+function confirmBox(title, desc, okLabel, onOk) {
+  openModal(`
+    <div class="p-6 text-center">
+      <div class="mx-auto w-14 h-14 rounded-full bg-[#F3DED5] text-alert grid place-items-center">${icon('alert', 26)}</div>
+      <h2 class="mt-3 font-semibold text-lg">${title}</h2>
+      <p class="text-sm text-muted mt-1">${desc}</p>
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button data-action="closeModal" class="btn-ghost">ยกเลิก</button>
+        <button id="confirm-ok" class="rounded-full bg-alert text-white font-medium py-3">${okLabel}</button>
+      </div>
+    </div>`);
+  document.getElementById('confirm-ok').onclick = onOk;
+}
+
+/* =====================================================================
+   ปุ่มต่าง ๆ ทั้งแอป (ดักคลิกจุดเดียว ตาม data-action)
+   ===================================================================== */
+const actions = {
+  nav: el => { closeModal(); go(el.dataset.to); },
+  openPlus,
+  addToCloset: openSourcePicker,
+  goShop: () => { closeModal(); go('shop'); },
+  takePhoto,
+  pickFile: () => document.getElementById('file-gallery').click(),
+  capture,
+  flipCamera: () => { cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment'; startCamera(); },
+  closeModal,
+  soon: el => toast(el.dataset.msg || 'เร็ว ๆ นี้'),
+
+  // ตัวแก้ไข
+  setCat: el => { state.draft.category = el.dataset.id; renderEditor(); },
+  toggleColor: el => { const a = state.draft.colors, id = el.dataset.id; a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); renderEditor(); },
+  toggleStyle: el => { const a = state.draft.styles, id = el.dataset.id; a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); renderEditor(); },
+  changePhoto: () => { state.draft.replacing = true; isTouchDevice() ? openChangePhotoChoice() : document.getElementById('file-gallery').click(); },
+  changeCam: () => document.getElementById('file-camera').click(),
+  changeGallery: () => document.getElementById('file-gallery').click(),
+  saveItem,
+
+  // รายการเสื้อผ้า
+  openItem: el => openItem(el.dataset.id),
+  editItem: el => { const it = state.items.find(x => x.id === el.dataset.id); if (it) openEditor(it); },
+  toggleFav: async el => {
+    const it = state.items.find(x => x.id === el.dataset.id);
+    if (!it) return;
+    it.favorite = !it.favorite; it.updatedAt = Date.now();
+    await Store.put(it);
+    if (el.dataset.inModal) openItem(it.id);
+    render();
+  },
+  deleteItem: el => {
+    const id = el.dataset.id;
+    confirmBox('ลบเสื้อผ้าชิ้นนี้?', 'รูปและข้อมูลของชิ้นนี้จะถูกลบถาวร', 'ลบ', async () => {
+      await Store.remove(id);
+      state.items = state.items.filter(x => x.id !== id);
+      closeModal(); render(); toast('ลบแล้ว');
+    });
+  },
+
+  // ตัวกรองในตู้
+  filterCat: el => { state.filters.cat = el.dataset.id; render(); },
+  filterColor: el => { toggleSet(state.filters.colors, el.dataset.id); render(); },
+  filterStyle: el => { toggleSet(state.filters.styles, el.dataset.id); render(); },
+  toggleMore: () => { state.filters.more = !state.filters.more; render(); },
+  clearFilters: () => { Object.assign(state.filters, { cat: 'all', colors: new Set(), styles: new Set(), fav: false, q: '' }); render(); },
+
+  // ข้อมูลส่วนตัว
+  exportData: () => {
+    const data = { app: 'Reweara', exportedAt: new Date().toISOString(), items: state.items };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `reweara-data-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('ดาวน์โหลดข้อมูลแล้ว');
+  },
+  deleteAll: () => confirmBox('ลบข้อมูลทั้งหมด?', `เสื้อผ้า ${state.items.length} ชิ้นจะถูกลบถาวรจากเครื่องนี้ กู้คืนไม่ได้`, 'ลบทั้งหมด', async () => {
+    await Store.clear(); state.items = []; closeModal(); render(); toast('ลบข้อมูลทั้งหมดแล้ว');
+  })
+};
+const toggleSet = (set, v) => set.has(v) ? set.delete(v) : set.add(v);
+
+function openChangePhotoChoice() {
+  // แสดงตัวเลือกเล็ก ๆ ทับหน้าแก้ไข (ไม่ปิดหน้าแก้ไข)
+  const box = document.createElement('div');
+  box.className = 'fixed inset-0 z-[55] flex items-end justify-center bg-ink/30 fade-in';
+  box.innerHTML = `<div class="w-full bg-cream rounded-t-[2rem] p-5 grid grid-cols-2 gap-3 sheet-in safe-bottom">
+      <button data-action="changeCam" class="rounded-3xl bg-olive text-white p-4 flex flex-col items-center gap-1">${icon('camera', 26)}<span class="text-sm">ถ่ายใหม่</span></button>
+      <button data-action="changeGallery" class="rounded-3xl bg-linen border border-sand p-4 flex flex-col items-center gap-1">${icon('image', 26)}<span class="text-sm">เลือกจากเครื่อง</span></button>
+    </div>`;
+  box.addEventListener('click', () => box.remove()); // แตะที่ใดก็ปิด (ปุ่มยังทำงานเพราะคลิกถูกจับก่อน)
+  document.body.appendChild(box);
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el || el.disabled) return;
+  const fn = actions[el.dataset.action];
+  if (fn) { e.preventDefault(); fn(el, e); }
+});
+document.addEventListener('input', e => {
+  const f = e.target.dataset?.field;
+  if (f && state.draft) state.draft[f] = e.target.value;
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset?.change === 'filterFav') { state.filters.fav = e.target.checked; render(); }
+});
+document.addEventListener('submit', e => {
+  const k = e.target.dataset?.submit;
+  if (!k) return;
+  e.preventDefault();
+  if (k === 'homeSearch') {
+    state.filters.q = document.getElementById('home-search').value.trim();
+    state.filters.cat = 'all';
+    go('wardrobe');
+  }
+  if (k === 'wardrobeSearch') {
+    state.filters.q = document.getElementById('wardrobe-search').value.trim();
+    render();
+  }
+});
+// ค้นหาในตู้แบบพิมพ์แล้วเห็นผลทันที
+document.addEventListener('input', e => {
+  if (e.target.id === 'wardrobe-search') {
+    state.filters.q = e.target.value.trim();
+    clearTimeout(window.__qT);
+    window.__qT = setTimeout(() => {
+      const pos = e.target.selectionStart;
+      render();
+      const inp = document.getElementById('wardrobe-search');
+      inp.focus(); try { inp.setSelectionRange(pos, pos); } catch {}
+    }, 250);
+  }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('modal-root').innerHTML) closeModal(); });
+
+/* ---------- ข้อความแจ้งเตือนสั้น ---------- */
+function toast(msg, kind = 'ok') {
+  const t = document.getElementById('toast');
+  t.className = `fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] fade-in px-4 py-2.5 rounded-full text-sm shadow-lg max-w-[90vw] text-center ${kind === 'warn' ? 'bg-alert text-white' : 'bg-ink text-white'}`;
+  t.textContent = msg;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+/* ---------- เริ่มต้นแอป ---------- */
+(async function init() {
+  await Store.open();
+  try { state.items = await Store.all(); } catch { state.items = []; }
+  hydrateIcons();
+  render();
+})();
+</script>
+</body>
+</html>
