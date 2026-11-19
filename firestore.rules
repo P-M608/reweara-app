@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// กฎความปลอดภัยของ Reweara
+// หลักการ: ผู้ใช้แต่ละคนอ่าน/เขียนได้เฉพาะข้อมูลของตัวเองเท่านั้น
+// ส่วนอื่นทั้งหมดถูกปิดไว้ (ไม่มีใครเข้าถึงได้)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validItem() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['image', 'category', 'colors', 'styles', 'createdAt', 'updatedAt'])
+        && d.image is string && d.image.size() < 1000000
+        && d.image.matches('^data:image/jpeg;base64,.*')
+        && d.category in ['top', 'outer', 'pants', 'skirt', 'dress', 'shoes', 'acc']
+        && d.colors is list && d.colors.size() >= 1 && d.colors.size() <= 17
+        && d.styles is list && d.styles.size() <= 8
+        && (!('name' in d) || (d.name is string && d.name.size() <= 60))
+        && (!('brand' in d) || (d.brand is string && d.brand.size() <= 40))
+        && (!('size' in d) || (d.size is string && d.size.size() <= 10));
+    }
+
+    // ข้อมูลบัญชีผู้ใช้
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      // เสื้อผ้าในตู้
+      match /items/{itemId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validItem();
+      }
+    }
+  }
+}

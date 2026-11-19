@@ -57,8 +57,8 @@
   .btn-primary:hover { background:#5E6E55; }
   .btn-primary:disabled { background:#C9CFC2; cursor:not-allowed; }
   .btn-ghost { border:1px solid #E8DFD2; background:#FBF8F3; border-radius:999px; padding:.75rem 1.2rem; font-weight:500; }
-  input[type=text], input[type=search] { background:#FBF8F3; border:1px solid #E8DFD2; border-radius:.9rem; padding:.7rem .95rem; width:100%; outline:none; }
-  input[type=text]:focus, input[type=search]:focus { border-color:#7A8B6F; box-shadow: 0 0 0 3px #DDE3D5; }
+  input[type=text], input[type=search], input[type=email], input[type=password] { background:#FBF8F3; border:1px solid #E8DFD2; border-radius:.9rem; padding:.7rem .95rem; width:100%; outline:none; }
+  input[type=text]:focus, input[type=search]:focus, input[type=email]:focus, input[type=password]:focus { border-color:#7A8B6F; box-shadow: 0 0 0 3px #DDE3D5; }
   .soon { font-size:.68rem; padding:.1rem .5rem; border-radius:999px; background:#E8DFD2; color:#8A8178; white-space:nowrap; }
 </style>
 </head>
@@ -113,13 +113,31 @@
 
 <!-- หน้าต่างลอย (Modal) และข้อความแจ้งเตือนสั้น (Toast) -->
 <div id="modal-root"></div>
+<div id="auth-screen" class="hidden"></div>
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] hidden"></div>
 
 <script>
 /* =====================================================================
-   Reweara — ขั้นที่ 1: โครงหน้าตา + ตู้เสื้อผ้า (เก็บข้อมูลในเครื่อง)
-   ขั้นถัดไปจะย้ายข้อมูลขึ้น Firebase และเพิ่ม AI
+   Reweara — ขั้นที่ 2: ล็อกอิน + เก็บข้อมูลบน Firebase
    ===================================================================== */
+
+/* ★★★ ตั้งค่า Firebase ★★★
+   วางค่า firebaseConfig ที่คัดลอกจาก Firebase Console แทน null ด้านล่าง
+   (ดูวิธีทีละขั้นในไฟล์ FIREBASE_SETUP.md)
+   ถ้ายังเป็น null แอปจะทำงานแบบเก็บข้อมูลในเครื่องเหมือนขั้นที่ 1
+
+   ตัวอย่าง:
+   const FIREBASE_CONFIG = {
+     apiKey: "AIza...",
+     authDomain: "reweara-xxxx.firebaseapp.com",
+     projectId: "reweara-xxxx",
+     storageBucket: "reweara-xxxx.firebasestorage.app",
+     messagingSenderId: "1234567890",
+     appId: "1:1234567890:web:abcdef"
+   };
+*/
+const FIREBASE_CONFIG = null;
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 
 /* ---------- ข้อมูลตั้งต้น ---------- */
 const CATEGORIES = [
@@ -204,12 +222,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&l
 
 /* =====================================================================
    ที่เก็บข้อมูลในเครื่อง (IndexedDB = ฐานข้อมูลเล็ก ๆ ในเบราว์เซอร์)
-   ขั้นที่ 2 จะเปลี่ยนไปเก็บบน Firebase แทน
+   ใช้เมื่อยังไม่ได้ตั้งค่า Firebase และใช้ตรวจหาข้อมูลเก่าเพื่อย้ายขึ้น Cloud
    ===================================================================== */
-const Store = {
+const LocalStore = {
   db: null,
   memory: new Map(), // สำรองกรณีเบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล (เช่น โหมดไม่ระบุตัวตนบางแบบ)
-  async open() {
+  async open(silent = false) {
     try {
       this.db = await new Promise((res, rej) => {
         const r = indexedDB.open('reweara', 1);
@@ -219,7 +237,7 @@ const Store = {
       });
     } catch (e) {
       this.db = null;
-      toast('เบราว์เซอร์นี้ไม่ให้เก็บข้อมูล — ข้อมูลจะหายเมื่อปิดหน้า', 'warn');
+      if (!silent) toast('เบราว์เซอร์นี้ไม่ให้เก็บข้อมูล — ข้อมูลจะหายเมื่อปิดหน้า', 'warn');
     }
   },
   _req(mode, fn) {
@@ -235,6 +253,58 @@ const Store = {
   async remove(id) { return this.db ? this._req('readwrite', s => s.delete(id)) : this.memory.delete(id); },
   async clear()    { return this.db ? this._req('readwrite', s => s.clear()) : this.memory.clear(); }
 };
+
+/* =====================================================================
+   Firebase (ล็อกอิน + ฐานข้อมูลบน Cloud)
+   ===================================================================== */
+const Cloud = { A: null, F: null, auth: null, db: null, user: null, busy: false };
+const USE_EMULATOR = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has('emulator');
+
+async function loadFirebase() {
+  const [appM, A, F] = await Promise.all([
+    import(`${FIREBASE_SDK}/firebase-app.js`),
+    import(`${FIREBASE_SDK}/firebase-auth.js`),
+    import(`${FIREBASE_SDK}/firebase-firestore.js`)
+  ]);
+  const app = appM.initializeApp(FIREBASE_CONFIG);
+  const auth = A.getAuth(app);
+  auth.languageCode = 'th';
+  let db;
+  try {
+    // เก็บสำเนาไว้ในเครื่องด้วย → เปิดแอปเร็วขึ้น และใช้งานตอนเน็ตหลุดได้
+    db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+  } catch {
+    db = F.getFirestore(app);
+  }
+  if (USE_EMULATOR) {
+    A.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    F.connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
+  Object.assign(Cloud, { A, F, auth, db });
+}
+
+// รอผลจาก Cloud ไม่เกิน 5 วินาที ถ้าเน็ตช้า/หลุด ข้อมูลจะถูกส่งขึ้นเองเมื่อกลับมาออนไลน์
+const withTimeout = (p, ms = 5000) => Promise.race([p, new Promise(res => setTimeout(() => res('queued'), ms))]);
+
+const CloudStore = {
+  col() { return Cloud.F.collection(Cloud.db, 'users', Cloud.user.uid, 'items'); },
+  async all() { return (await Cloud.F.getDocs(this.col())).docs.map(d => d.data()); },
+  async put(item) { return withTimeout(Cloud.F.setDoc(Cloud.F.doc(this.col(), item.id), item)); },
+  async remove(id) { return withTimeout(Cloud.F.deleteDoc(Cloud.F.doc(this.col(), id))); },
+  async clear() {
+    const F = Cloud.F;
+    const snap = await F.getDocs(this.col());
+    for (let i = 0; i < snap.docs.length; i += 400) {   // ลบทีละชุด (จำกัด 500 ต่อครั้ง)
+      const b = F.writeBatch(Cloud.db);
+      snap.docs.slice(i, i + 400).forEach(d => b.delete(d.ref));
+      await b.commit();
+    }
+  }
+};
+
+// ตัวที่แอปใช้อยู่จริง: Cloud เมื่อล็อกอินแล้ว, ในเครื่องเมื่อยังไม่ได้ตั้งค่า Firebase
+let Store = LocalStore;
+const cloudMode = () => !!FIREBASE_CONFIG;
 
 /* ---------- สถานะของแอป ---------- */
 const state = {
@@ -275,6 +345,11 @@ function greeting() {
   return 'ราตรีสวัสดิ์';
 }
 
+function firstName() {
+  const n = Cloud.user?.displayName || '';
+  return n.split(/\s+/)[0] || '';
+}
+
 function renderHome() {
   const n = state.items.length;
   const steps = [
@@ -287,7 +362,7 @@ function renderHome() {
   document.getElementById('page-home').innerHTML = `
     <header class="flex items-start justify-between gap-3 fade-in">
       <div>
-        <p class="text-sm text-muted">${greeting()} 👋</p>
+        <p class="text-sm text-muted">${greeting()}${firstName() ? ', ' + esc(firstName()) : ''} 👋</p>
         <h1 class="text-2xl font-semibold leading-tight mt-0.5">วันนี้ใส่อะไรดี?</h1>
       </div>
       <div class="flex items-center gap-2 rounded-full bg-linen border border-sand px-3 py-1.5 text-sm text-muted" title="สภาพอากาศจะเปิดใช้ในขั้นที่ 5">
@@ -299,6 +374,7 @@ function renderHome() {
       <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">${icon('search', 18)}</span>
       <input id="home-search" type="search" placeholder="ค้นหาเสื้อผ้า ลุค หรือแบรนด์" style="padding-left:2.6rem" enterkeyhint="search">
     </form>
+    ${guestNudgeHTML()}
 
     ${doneCount < steps.length ? `
     <div class="mt-5 rounded-3xl bg-olive-soft/60 border border-olive-soft p-4 sm:p-5">
@@ -406,6 +482,7 @@ function renderWardrobe() {
       </div>
       <button data-action="addToCloset" class="btn-primary !py-2.5 !px-4 text-sm flex items-center gap-1.5">${icon('plus', 18)} เพิ่ม</button>
     </header>
+    ${guestNudgeHTML()}
 
     <div class="mt-4 flex gap-2">
       <form data-submit="wardrobeSearch" class="relative flex-1">
@@ -528,19 +605,36 @@ function renderShop() {
 function renderProfile() {
   const n = state.items.length;
   const fav = state.items.filter(i => i.favorite).length;
+  const u = Cloud.user;
+  const providers = (u?.providerData || []).map(p => p.providerId);
+  const accountLabel = !u ? 'โหมดเก็บในเครื่อง'
+    : u.isAnonymous ? 'ยังไม่ได้ผูกบัญชี · ข้อมูลอยู่บน Cloud'
+    : [providers.includes('google.com') && 'บัญชี Google', providers.includes('password') && 'บัญชีอีเมล'].filter(Boolean).join(' · ');
   document.getElementById('page-profile').innerHTML = `
     <header class="flex items-center gap-4 fade-in">
-      <div class="w-16 h-16 rounded-full bg-sand grid place-items-center text-clay">${icon('user', 30)}</div>
+      ${u?.photoURL
+        ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" class="w-16 h-16 rounded-full object-cover bg-sand">`
+        : `<div class="w-16 h-16 rounded-full bg-sand grid place-items-center text-clay">${icon('user', 30)}</div>`}
       <div class="min-w-0">
-        <h1 class="text-xl font-semibold">ผู้ใช้ทดลอง (Guest)</h1>
-        <p class="text-sm text-muted">ข้อมูลเก็บอยู่ในเบราว์เซอร์เครื่องนี้</p>
+        <h1 class="text-xl font-semibold truncate">${esc(u && !u.isAnonymous ? (u.displayName || u.email) : 'ผู้ใช้ทดลอง (Guest)')}</h1>
+        ${u?.displayName && u?.email ? `<p class="text-sm text-muted truncate">${esc(u.email)}</p>` : ''}
+        <p class="text-xs text-muted">${accountLabel}</p>
       </div>
     </header>
 
-    <div class="mt-4 rounded-2xl bg-linen border border-sand p-4 flex items-center justify-between gap-3">
-      <p class="text-sm">ล็อกอินด้วย Google / อีเมล และผูกบัญชีเพื่อไม่ให้ตู้หาย</p>
-      <span class="soon">ขั้นที่ 2</span>
-    </div>
+    ${!cloudMode() ? `
+    <div class="mt-4 rounded-2xl bg-linen border border-sand p-4">
+      <p class="text-sm font-medium">ยังไม่ได้เชื่อมต่อ Firebase</p>
+      <p class="text-xs text-muted mt-0.5">ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น ตั้งค่าตามไฟล์ FIREBASE_SETUP.md เพื่อเปิดระบบล็อกอินและเก็บบน Cloud</p>
+    </div>` : u?.isAnonymous ? `
+    <div class="mt-4 rounded-3xl bg-olive text-white p-4 flex items-center gap-3">
+      <span class="shrink-0">${icon('shield', 26)}</span>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium">ผูกบัญชีเพื่อไม่ให้ตู้หาย</p>
+        <p class="text-xs text-white/80">ใช้ Google หรืออีเมล · เสื้อผ้าย้ายไปครบทุกชิ้น</p>
+      </div>
+      <button data-action="openLink" class="shrink-0 rounded-full bg-white text-olive-dark text-sm font-medium px-4 py-2">ผูกบัญชี</button>
+    </div>` : ''}
 
     <div class="mt-4 grid grid-cols-3 gap-3 text-center">
       <div class="rounded-2xl bg-linen border border-sand p-3"><p class="text-2xl font-semibold">${n}</p><p class="text-xs text-muted">ชิ้นในตู้</p></div>
@@ -571,13 +665,15 @@ function renderProfile() {
           <span class="text-muted">${icon('download', 20)}</span>
         </button>
         <button data-action="deleteAll" class="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-cream">
-          <div><p class="font-medium text-sm text-alert">ลบข้อมูลทั้งหมด</p><p class="text-xs text-muted">ลบเสื้อผ้าทุกชิ้นออกจากเครื่องนี้ กู้คืนไม่ได้</p></div>
+          <div><p class="font-medium text-sm text-alert">ลบข้อมูลทั้งหมด</p><p class="text-xs text-muted">ลบเสื้อผ้าทุกชิ้นออกจาก${u ? ' Cloud' : 'เครื่องนี้'} กู้คืนไม่ได้</p></div>
           <span class="text-alert">${icon('trash', 20)}</span>
         </button>
       </div>
     </section>
 
-    <p class="mt-8 text-center text-xs text-muted">Reweara · เวอร์ชันทดลอง ขั้นที่ 1</p>
+    ${u ? `<button data-action="signOut" class="mt-6 btn-ghost w-full">ออกจากระบบ</button>` : ''}
+
+    <p class="mt-8 text-center text-xs text-muted">Reweara · เวอร์ชันทดลอง ขั้นที่ 2</p>
   `;
 }
 
@@ -701,14 +797,22 @@ function capture() {
 }
 
 /* ---------- ย่อรูปให้เล็กลง (โหลดเร็ว + ประหยัดที่เก็บ) ---------- */
-function drawScaled(src, w, h, max = 900) {
-  const s = Math.min(1, max / Math.max(w, h));
-  const c = document.createElement('canvas');
-  c.width = Math.round(w * s); c.height = Math.round(h * s);
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-  ctx.drawImage(src, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.82);
+// ฐานข้อมูลรับได้ไม่เกิน ~1MB ต่อชิ้น จึงย่อจนรูปเล็กกว่า ~700KB เสมอ
+const MAX_IMAGE_CHARS = 700000;
+function drawScaled(src, w, h) {
+  const tries = [[900, 0.82], [900, 0.7], [750, 0.7], [600, 0.65], [480, 0.6]];
+  let out = '';
+  for (const [max, q] of tries) {
+    const s = Math.min(1, max / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    out = c.toDataURL('image/jpeg', q);
+    if (out.length < MAX_IMAGE_CHARS) break;
+  }
+  return out;
 }
 function fileToDataUrl(file) {
   return new Promise((res, rej) => {
@@ -818,16 +922,19 @@ async function saveItem() {
     name: d.name.trim(), brand: d.brand.trim(), size: d.size.trim(),
     favorite: d.favorite, createdAt: d.createdAt || now, updatedAt: now
   };
+  let res;
   try {
-    await Store.put(item);
+    res = await Store.put(item);
   } catch (e) {
-    return toast('บันทึกไม่สำเร็จ — ที่เก็บข้อมูลในเครื่องอาจเต็ม', 'warn');
+    console.error(e);
+    return toast(Store === CloudStore ? 'บันทึกขึ้น Cloud ไม่สำเร็จ ลองอีกครั้ง' : 'บันทึกไม่สำเร็จ — ที่เก็บข้อมูลในเครื่องอาจเต็ม', 'warn');
   }
   const i = state.items.findIndex(x => x.id === item.id);
   if (i >= 0) state.items[i] = item; else state.items.push(item);
   const isNew = !d.id;
   closeModal();
-  toast(isNew ? 'เพิ่มเข้าตู้แล้ว ✓' : 'บันทึกการแก้ไขแล้ว ✓');
+  if (res === 'queued') toast('บันทึกแล้ว · จะซิงก์ขึ้น Cloud เมื่อเน็ตกลับมา');
+  else toast(isNew ? 'เพิ่มเข้าตู้แล้ว ✓' : 'บันทึกการแก้ไขแล้ว ✓');
   if (isNew && currentPage() !== 'wardrobe') go('wardrobe'); else render();
 }
 
@@ -927,7 +1034,12 @@ const actions = {
 
   // ข้อมูลส่วนตัว
   exportData: () => {
-    const data = { app: 'Reweara', exportedAt: new Date().toISOString(), items: state.items };
+    const u = Cloud.user;
+    const data = {
+      app: 'Reweara', exportedAt: new Date().toISOString(),
+      account: u ? { uid: u.uid, email: u.email || null, name: u.displayName || null, isGuest: u.isAnonymous } : null,
+      items: state.items
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -936,8 +1048,9 @@ const actions = {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('ดาวน์โหลดข้อมูลแล้ว');
   },
-  deleteAll: () => confirmBox('ลบข้อมูลทั้งหมด?', `เสื้อผ้า ${state.items.length} ชิ้นจะถูกลบถาวรจากเครื่องนี้ กู้คืนไม่ได้`, 'ลบทั้งหมด', async () => {
-    await Store.clear(); state.items = []; closeModal(); render(); toast('ลบข้อมูลทั้งหมดแล้ว');
+  deleteAll: () => confirmBox('ลบข้อมูลทั้งหมด?', `เสื้อผ้า ${state.items.length} ชิ้นจะถูกลบถาวร${Store === CloudStore ? 'จาก Cloud' : 'จากเครื่องนี้'} กู้คืนไม่ได้`, 'ลบทั้งหมด', async () => {
+    try { await Store.clear(); } catch (e) { console.error(e); return toast('ลบไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่', 'warn'); }
+    state.items = []; closeModal(); render(); toast('ลบข้อมูลทั้งหมดแล้ว');
   })
 };
 const toggleSet = (set, v) => set.has(v) ? set.delete(v) : set.add(v);
@@ -996,6 +1109,350 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('modal-root').innerHTML) closeModal(); });
 
+/* =====================================================================
+   บัญชีผู้ใช้: เข้าสู่ระบบ (Guest / Google / อีเมล), ผูกบัญชี, ออกจากระบบ
+   ===================================================================== */
+const AUTH_ERRORS = {
+  'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+  'auth/missing-email': 'กรุณากรอกอีเมล',
+  'auth/missing-password': 'กรุณากรอกรหัสผ่าน',
+  'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+  'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  'auth/invalid-login-credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  'auth/wrong-password': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  'auth/user-not-found': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  'auth/email-already-in-use': 'อีเมลนี้สมัครไว้แล้ว ลองกด "เข้าสู่ระบบ" แทน',
+  'auth/user-disabled': 'บัญชีนี้ถูกระงับการใช้งาน',
+  'auth/network-request-failed': 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ตรวจสอบเน็ตแล้วลองใหม่',
+  'auth/too-many-requests': 'ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่',
+  'auth/operation-not-allowed': 'ยังไม่ได้เปิดวิธีเข้าสู่ระบบนี้ใน Firebase Console (ดู FIREBASE_SETUP.md ขั้นที่ 3)',
+  'auth/admin-restricted-operation': 'ยังไม่ได้เปิด "Anonymous" ใน Firebase Console (ดู FIREBASE_SETUP.md ขั้นที่ 3)',
+  'auth/unauthorized-domain': 'เว็บนี้ยังไม่ได้รับอนุญาตใน Firebase (ดู FIREBASE_SETUP.md ขั้นที่ 6)',
+  'auth/requires-recent-login': 'เพื่อความปลอดภัย กรุณาออกแล้วเข้าสู่ระบบใหม่อีกครั้ง',
+  'auth/provider-already-linked': 'บัญชีนี้ผูกไว้แล้ว'
+};
+const SILENT_AUTH = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/user-cancelled']);
+const authMsg = e => AUTH_ERRORS[e?.code] || `เกิดข้อผิดพลาด ลองอีกครั้ง${e?.code ? ` (${e.code})` : ''}`;
+
+const authUI = { mode: 'choose', email: '', error: '', info: '', loading: false }; // choose | login | register | reset
+const authEl = () => document.getElementById('auth-screen');
+
+function showSplash(text = 'กำลังเปิดตู้เสื้อผ้า...') {
+  const el = authEl();
+  el.className = 'fixed inset-0 z-[70] bg-cream grid place-items-center';
+  el.innerHTML = `<div class="text-center fade-in">
+      <div class="mx-auto w-16 h-16 rounded-3xl bg-olive text-white grid place-items-center animate-pulse">${icon('hanger', 32)}</div>
+      <p class="font-display text-3xl mt-4">Reweara</p>
+      <p class="text-sm text-muted mt-1">${esc(text)}</p>
+    </div>`;
+}
+function hideAuthScreen() { const el = authEl(); el.className = 'hidden'; el.innerHTML = ''; }
+
+const googleLogo = `<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
+
+function emailFields({ withPassword = true, newPassword = false, email = '' } = {}) {
+  return `
+    <label class="block text-xs text-muted">อีเมล
+      <input name="email" type="email" required autocomplete="email" inputmode="email" value="${esc(email)}" placeholder="you@example.com" class="mt-1 text-sm text-ink">
+    </label>
+    ${withPassword ? `<label class="block text-xs text-muted">รหัสผ่าน${newPassword ? ' (อย่างน้อย 6 ตัวอักษร)' : ''}
+      <input name="password" type="password" required minlength="6" autocomplete="${newPassword ? 'new-password' : 'current-password'}" placeholder="••••••" class="mt-1 text-sm text-ink">
+    </label>` : ''}`;
+}
+
+function renderAuthScreen() {
+  const u = authUI, el = authEl();
+  const dis = u.loading ? 'disabled' : '';
+  el.className = 'fixed inset-0 z-[70] bg-cream overflow-y-auto';
+  const titles = { login: 'เข้าสู่ระบบด้วยอีเมล', register: 'สมัครด้วยอีเมล', reset: 'ตั้งรหัสผ่านใหม่' };
+  el.innerHTML = `
+    <div class="min-h-full flex flex-col items-center justify-center px-6 py-10">
+      <div class="w-full max-w-sm fade-in">
+        <div class="text-center">
+          <div class="mx-auto w-16 h-16 rounded-3xl bg-olive text-white grid place-items-center">${icon('hanger', 32)}</div>
+          <h1 class="font-display text-4xl mt-4">Reweara</h1>
+          <p class="text-sm text-muted mt-1">ใส่ของที่มีให้คุ้ม · AI ช่วยจัดชุดจากตู้ของคุณ</p>
+        </div>
+        ${u.error ? `<div role="alert" class="mt-6 rounded-2xl bg-[#F3DED5] text-alert text-sm px-4 py-3">${esc(u.error)}</div>` : ''}
+        ${u.info ? `<div role="status" class="mt-6 rounded-2xl bg-olive-soft text-olive-dark text-sm px-4 py-3">${esc(u.info)}</div>` : ''}
+
+        ${u.mode === 'choose' ? `
+          <div class="mt-8 grid gap-3">
+            <button data-action="authGuest" ${dis} class="btn-primary w-full !py-3.5 text-base">
+              ทดลองใช้เลย
+              <span class="block text-xs font-normal text-white/80">ไม่ต้องสมัคร · ผูกบัญชีทีหลังได้</span>
+            </button>
+            <div class="flex items-center gap-3 text-xs text-muted my-1"><span class="flex-1 h-px bg-sand"></span>หรือ<span class="flex-1 h-px bg-sand"></span></div>
+            <button data-action="authGoogle" ${dis} class="btn-ghost w-full inline-flex items-center justify-center gap-2.5 !bg-white">${googleLogo} เข้าสู่ระบบด้วย Google</button>
+            <button data-action="authMode" data-mode="login" ${dis} class="btn-ghost w-full">ใช้อีเมลและรหัสผ่าน</button>
+          </div>
+        ` : `
+          <form data-submit="authEmail" class="mt-8 grid gap-3" novalidate>
+            <h2 class="font-semibold">${titles[u.mode]}</h2>
+            ${u.mode === 'reset' ? `<p class="text-sm text-muted -mt-1">กรอกอีเมลที่ใช้สมัคร ระบบจะส่งลิงก์ตั้งรหัสใหม่ไปให้</p>` : ''}
+            ${emailFields({ withPassword: u.mode !== 'reset', newPassword: u.mode === 'register', email: u.email })}
+            <button type="submit" ${dis} class="btn-primary w-full mt-1">
+              ${u.loading ? 'กำลังดำเนินการ...' : ({ login: 'เข้าสู่ระบบ', register: 'สมัครและเริ่มใช้', reset: 'ส่งลิงก์ตั้งรหัสใหม่' })[u.mode]}
+            </button>
+            <div class="flex items-center justify-between text-sm mt-1">
+              ${u.mode === 'login' ? `<button type="button" data-action="authMode" data-mode="reset" class="text-muted underline">ลืมรหัสผ่าน?</button>
+                                       <button type="button" data-action="authMode" data-mode="register" class="text-olive-dark font-medium">สมัครใหม่</button>`
+              : `<span></span><button type="button" data-action="authMode" data-mode="login" class="text-olive-dark font-medium">มีบัญชีแล้ว? เข้าสู่ระบบ</button>`}
+            </div>
+            <button type="button" data-action="authMode" data-mode="choose" class="text-sm text-muted mt-2">← กลับ</button>
+          </form>
+        `}
+        <p class="mt-8 text-center text-xs text-muted leading-relaxed">${icon('shield', 14, 'class="inline -mt-0.5"')} ข้อมูลของคุณใช้เพื่อแนะนำชุดให้คุณคนเดียว<br>ดาวน์โหลดหรือลบได้ทุกเมื่อในหน้า Profile</p>
+      </div>
+    </div>`;
+}
+
+async function authRun(fn) {
+  authUI.loading = true; authUI.error = ''; authUI.info = '';
+  renderAuthScreen();
+  try { await fn(); }
+  catch (e) { console.error(e); if (!SILENT_AUTH.has(e?.code)) authUI.error = authMsg(e); }
+  finally { authUI.loading = false; if (!Cloud.user) renderAuthScreen(); }
+}
+
+function googleProvider() {
+  const p = new Cloud.A.GoogleAuthProvider();
+  p.setCustomParameters({ prompt: 'select_account' });
+  return p;
+}
+const popupBlocked = e => ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e?.code);
+
+async function signInGoogle() {
+  const { A } = Cloud;
+  try { await A.signInWithPopup(Cloud.auth, googleProvider()); }
+  catch (e) { if (popupBlocked(e)) return A.signInWithRedirect(Cloud.auth, googleProvider()); throw e; }
+}
+
+async function submitAuthEmail(form) {
+  const { A } = Cloud;
+  const email = form.email.value.trim(), password = form.password?.value || '';
+  authUI.email = email;
+  if (!email) { authUI.error = 'กรุณากรอกอีเมล'; return renderAuthScreen(); }
+  if (authUI.mode !== 'reset' && password.length < 6) { authUI.error = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; return renderAuthScreen(); }
+  await authRun(async () => {
+    if (authUI.mode === 'login') await A.signInWithEmailAndPassword(Cloud.auth, email, password);
+    if (authUI.mode === 'register') await A.createUserWithEmailAndPassword(Cloud.auth, email, password);
+    if (authUI.mode === 'reset') {
+      await A.sendPasswordResetEmail(Cloud.auth, email);
+      authUI.mode = 'login';
+      authUI.info = `ถ้ามีบัญชีของ ${email} ระบบได้ส่งลิงก์ตั้งรหัสใหม่ไปแล้ว (เช็กในกล่องจดหมายขยะด้วย)`;
+    }
+  });
+}
+
+/* ---------- เมื่อสถานะล็อกอินเปลี่ยน ---------- */
+const userDocRef = () => Cloud.F.doc(Cloud.db, 'users', Cloud.user.uid);
+
+async function onUser(user) {
+  if (Cloud.busy) return;           // กำลังย้ายบัญชีอยู่ ให้ขั้นตอนนั้นจัดการเอง
+  Cloud.user = user;
+  if (!user) {
+    Store = LocalStore;
+    state.items = [];
+    closeModal();
+    renderAuthScreen();
+    return;
+  }
+  Store = CloudStore;
+  showSplash();
+  withTimeout(Cloud.F.setDoc(userDocRef(), { lastSeenAt: Date.now(), isAnonymous: user.isAnonymous }, { merge: true })).catch(console.error);
+  try { state.items = await CloudStore.all(); }
+  catch (e) { console.error(e); state.items = []; toast('โหลดข้อมูลจาก Cloud ไม่สำเร็จ ลองรีเฟรชหน้า', 'warn'); }
+  authUI.mode = 'choose'; authUI.error = ''; authUI.info = '';
+  hideAuthScreen();
+  render();
+  offerLocalImport();
+}
+
+/* ---------- ย้ายเสื้อผ้าจากโหมดในเครื่อง (ขั้นที่ 1) ขึ้น Cloud ---------- */
+const flag = { get: k => { try { return localStorage.getItem(k) === '1'; } catch { return false; } },
+               set: k => { try { localStorage.setItem(k, '1'); } catch {} } };
+
+async function offerLocalImport() {
+  if (flag.get('rw-import-skip')) return;
+  let local = [];
+  try { local = await LocalStore.all(); } catch {}
+  if (!local.length) return;
+  openModal(`
+    <div class="p-6 text-center">
+      <div class="mx-auto w-14 h-14 rounded-full bg-olive-soft text-olive-dark grid place-items-center">${icon('hanger', 26)}</div>
+      <h2 class="mt-3 font-semibold text-lg">พบเสื้อผ้า ${local.length} ชิ้นในเครื่องนี้</h2>
+      <p class="text-sm text-muted mt-1">ที่บันทึกไว้ก่อนเชื่อมต่อ Cloud ย้ายเข้าบัญชีนี้เลยไหม?</p>
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button data-action="skipImport" class="btn-ghost">ไม่ต้อง</button>
+        <button data-action="doImport" class="btn-primary">ย้ายเข้าบัญชี</button>
+      </div>
+    </div>`);
+}
+async function doImport(el) {
+  el.disabled = true; el.textContent = 'กำลังย้าย...';
+  const local = await LocalStore.all();
+  for (const it of local) {
+    await CloudStore.put(it);
+    if (!state.items.some(x => x.id === it.id)) state.items.push(it);
+  }
+  await LocalStore.clear();
+  closeModal(); render();
+  toast(`ย้ายเสื้อผ้า ${local.length} ชิ้นเข้าบัญชีแล้ว ✓`);
+}
+
+/* ---------- แถบเตือนให้ Guest ผูกบัญชี (เมื่อมีเสื้อผ้าครบ 3 ชิ้น) ---------- */
+function guestNudgeHTML() {
+  if (!(Cloud.user?.isAnonymous && state.items.length >= 3 && !flag.get('rw-nudge-off'))) return '';
+  return `
+    <div class="mt-4 flex items-center gap-3 rounded-2xl bg-clay/15 border border-clay/30 px-3.5 py-3 fade-in" role="status">
+      <span class="text-clay shrink-0">${icon('shield', 22)}</span>
+      <p class="text-sm flex-1 min-w-0">ผูกบัญชีเพื่อไม่ให้ตู้เสื้อผ้าหาย</p>
+      <button data-action="openLink" class="shrink-0 text-sm font-medium rounded-full bg-clay text-white px-3.5 py-1.5">ผูกบัญชี</button>
+      <button data-action="dismissNudge" aria-label="ปิด" class="shrink-0 text-muted -mr-1">${icon('x', 18)}</button>
+    </div>`;
+}
+
+/* ---------- ผูกบัญชี Guest เข้ากับ Google / อีเมล ---------- */
+function openLinkModal(error = '') {
+  openModal(`
+    ${sheetHandle}
+    <div class="p-5 pt-3">
+      <div class="flex items-center justify-between"><h2 class="font-semibold text-lg">ผูกบัญชี</h2>${closeBtn}</div>
+      <p class="text-sm text-muted">เสื้อผ้า ${state.items.length} ชิ้นของคุณจะย้ายเข้าบัญชีครบทุกชิ้น และเปิดจากเครื่องไหนก็เจอ</p>
+      ${error ? `<div role="alert" class="mt-3 rounded-2xl bg-[#F3DED5] text-alert text-sm px-4 py-3">${esc(error)}</div>` : ''}
+      <button data-action="linkGoogle" class="mt-4 btn-ghost w-full inline-flex items-center justify-center gap-2.5 !bg-white">${googleLogo} ผูกกับบัญชี Google</button>
+      <div class="flex items-center gap-3 text-xs text-muted my-4"><span class="flex-1 h-px bg-sand"></span>หรือใช้อีเมล<span class="flex-1 h-px bg-sand"></span></div>
+      <form data-submit="linkEmail" class="grid gap-3" novalidate>
+        ${emailFields({ newPassword: true })}
+        <button type="submit" class="btn-primary w-full">ผูกกับอีเมลนี้</button>
+      </form>
+    </div>`);
+}
+
+async function afterLinked() {
+  await Cloud.auth.currentUser.reload();
+  Cloud.user = Cloud.auth.currentUser;
+  withTimeout(Cloud.F.setDoc(userDocRef(), { isAnonymous: false, linkedAt: Date.now() }, { merge: true })).catch(console.error);
+  closeModal(); render();
+  toast('ผูกบัญชีแล้ว ✓ ตู้เสื้อผ้าของคุณปลอดภัย');
+}
+
+async function linkGoogle() {
+  const { A } = Cloud;
+  try {
+    await A.linkWithPopup(Cloud.user, googleProvider());
+    await afterLinked();
+  } catch (e) {
+    if (e?.code === 'auth/credential-already-in-use') {
+      const cred = A.GoogleAuthProvider.credentialFromError(e);
+      if (cred) return confirmMerge(cred, 'บัญชี Google นี้');
+    }
+    if (popupBlocked(e)) return A.linkWithRedirect(Cloud.user, googleProvider());
+    if (!SILENT_AUTH.has(e?.code)) openLinkModal(authMsg(e));
+  }
+}
+
+async function linkEmail(form) {
+  const { A } = Cloud;
+  const email = form.email.value.trim(), password = form.password.value;
+  if (!email || password.length < 6) return openLinkModal(!email ? 'กรุณากรอกอีเมล' : 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+  form.querySelector('[type=submit]').disabled = true;
+  try {
+    await A.linkWithCredential(Cloud.user, A.EmailAuthProvider.credential(email, password));
+    await afterLinked();
+  } catch (e) {
+    if (['auth/email-already-in-use', 'auth/credential-already-in-use'].includes(e?.code))
+      return confirmMerge(A.EmailAuthProvider.credential(email, password), `บัญชี ${email}`);
+    openLinkModal(authMsg(e));
+  }
+}
+
+// บัญชีที่จะผูกมีอยู่แล้ว → ย้ายเสื้อผ้าของ Guest ไปรวมในบัญชีนั้น แล้วลบข้อมูล Guest ทิ้ง
+function confirmMerge(cred, label) {
+  openModal(`
+    <div class="p-6 text-center">
+      <div class="mx-auto w-14 h-14 rounded-full bg-olive-soft text-olive-dark grid place-items-center">${icon('user', 26)}</div>
+      <h2 class="mt-3 font-semibold text-lg">${esc(label)} มีอยู่แล้ว</h2>
+      <p class="text-sm text-muted mt-1">จะย้ายเสื้อผ้า ${state.items.length} ชิ้นของ Guest ไปรวมกับตู้ในบัญชีนั้น แล้วเข้าสู่ระบบให้</p>
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button data-action="closeModal" class="btn-ghost">ยกเลิก</button>
+        <button id="merge-ok" class="btn-primary">ย้ายและเข้าสู่ระบบ</button>
+      </div>
+    </div>`);
+  document.getElementById('merge-ok').onclick = () => mergeGuestInto(cred);
+}
+
+async function mergeGuestInto(cred) {
+  const { A } = Cloud;
+  const items = [...state.items];
+  Cloud.busy = true;
+  closeModal();
+  showSplash('กำลังย้ายเสื้อผ้าเข้าบัญชี...');
+  let err = null;
+  try {
+    await deleteCloudData();                                  // ลบข้อมูลชุดเดิมของ Guest
+    await Cloud.user.delete().catch(() => A.signOut(Cloud.auth));
+    try { await A.signInWithCredential(Cloud.auth, cred); }
+    catch (e) { err = e; await A.signInAnonymously(Cloud.auth); } // เข้าไม่ได้ → กลับเป็น Guest ใหม่ แต่เสื้อผ้ายังอยู่ครบ
+    Cloud.user = Cloud.auth.currentUser;
+    for (const it of items) await CloudStore.put(it);
+  } catch (e) {
+    err = err || e;
+    console.error(e);
+  }
+  Cloud.busy = false;
+  await onUser(Cloud.auth.currentUser);
+  if (err) toast(`เข้าสู่ระบบไม่สำเร็จ: ${authMsg(err)} — เสื้อผ้ายังอยู่ครบ`, 'warn');
+  else toast(`ย้ายเสื้อผ้า ${items.length} ชิ้นเข้าบัญชีแล้ว ✓`);
+}
+
+/* ---------- ลบข้อมูล / ออกจากระบบ ---------- */
+async function deleteCloudData() {
+  await CloudStore.clear();
+  await Cloud.F.deleteDoc(userDocRef());
+}
+
+async function wipeLocalCacheAndReload() {
+  // ล้างสำเนาข้อมูลที่เก็บในเครื่อง เพื่อไม่ให้คนที่ใช้เครื่องต่อเห็นข้อมูล
+  try { await Cloud.F.terminate(Cloud.db); await Cloud.F.clearIndexedDbPersistence(Cloud.db); } catch (e) { console.error(e); }
+  location.reload();
+}
+
+function signOutFlow() {
+  const { A } = Cloud;
+  if (Cloud.user?.isAnonymous) {
+    confirmBox('ออกจากโหมด Guest?', 'บัญชี Guest ยังไม่ได้ผูก ถ้าออกตอนนี้ เสื้อผ้าทั้งหมดจะถูกลบ ถ้าอยากเก็บไว้ ให้กด "ผูกบัญชี" ก่อน', 'ลบและออก', async () => {
+      Cloud.busy = true; showSplash('กำลังลบข้อมูล...');
+      try { await deleteCloudData(); await Cloud.user.delete(); } catch (e) { console.error(e); await A.signOut(Cloud.auth); }
+      await wipeLocalCacheAndReload();
+    });
+  } else {
+    confirmBox('ออกจากระบบ?', 'เสื้อผ้ายังเก็บอยู่ครบบน Cloud เข้าสู่ระบบใหม่เมื่อไรก็เจอตู้เดิม', 'ออกจากระบบ', async () => {
+      Cloud.busy = true; showSplash('กำลังออกจากระบบ...');
+      await A.signOut(Cloud.auth);
+      await wipeLocalCacheAndReload();
+    });
+  }
+}
+
+Object.assign(actions, {
+  authGuest: () => authRun(() => Cloud.A.signInAnonymously(Cloud.auth)),
+  authGoogle: () => authRun(signInGoogle),
+  authMode: el => { authUI.mode = el.dataset.mode; authUI.error = ''; authUI.info = ''; renderAuthScreen(); },
+  openLink: () => openLinkModal(),
+  linkGoogle,
+  signOut: signOutFlow,
+  dismissNudge: () => { flag.set('rw-nudge-off'); render(); },
+  skipImport: () => { flag.set('rw-import-skip'); closeModal(); },
+  doImport
+});
+document.addEventListener('submit', e => {
+  const k = e.target.dataset?.submit;
+  if (k === 'authEmail') { e.preventDefault(); submitAuthEmail(e.target); }
+  if (k === 'linkEmail') { e.preventDefault(); linkEmail(e.target); }
+});
+
 /* ---------- ข้อความแจ้งเตือนสั้น ---------- */
 function toast(msg, kind = 'ok') {
   const t = document.getElementById('toast');
@@ -1007,10 +1464,27 @@ function toast(msg, kind = 'ok') {
 
 /* ---------- เริ่มต้นแอป ---------- */
 (async function init() {
-  await Store.open();
-  try { state.items = await Store.all(); } catch { state.items = []; }
   hydrateIcons();
-  render();
+  await LocalStore.open(cloudMode());
+  if (!cloudMode()) {                 // ยังไม่ได้ตั้งค่า Firebase → ใช้งานแบบเก็บในเครื่อง
+    Store = LocalStore;
+    try { state.items = await LocalStore.all(); } catch { state.items = []; }
+    render();
+    return;
+  }
+  showSplash();
+  try {
+    await loadFirebase();
+  } catch (e) {
+    console.error(e);
+    showSplash('เชื่อมต่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วรีเฟรชหน้า');
+    return;
+  }
+  Cloud.A.getRedirectResult(Cloud.auth).catch(e => {
+    if (e?.code === 'auth/credential-already-in-use') return; // ผูกผ่าน redirect แต่บัญชีมีอยู่แล้ว
+    if (!SILENT_AUTH.has(e?.code)) { authUI.error = authMsg(e); if (!Cloud.user) renderAuthScreen(); }
+  });
+  Cloud.A.onAuthStateChanged(Cloud.auth, onUser);
 })();
 </script>
 </body>
